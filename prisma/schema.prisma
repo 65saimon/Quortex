@@ -1,0 +1,81 @@
+// Prisma schema for Quantrix Intelligence
+// Pointed at Supabase Postgres connection
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum ProjectCategory {
+  SaaS
+  Automation
+  R_D @map("R&D")
+}
+
+enum ProjectStatus {
+  published
+  draft
+  archived
+}
+
+enum ContactStatus {
+  new
+  reviewed
+  contacted
+  archived
+}
+
+model Project {
+  id          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String          @unique
+  title       String
+  tagline     String?
+  description String
+  category    String          // 'SaaS' | 'Automation' | 'R&D'
+  techStack   String[]        @map("tech_stack")
+  coverImage  String          @map("cover_image")
+  featured    Boolean         @default(false)
+  status      String          @default("published") // 'published' | 'draft' | 'archived'
+  metrics     Json?           @default("{}")
+  client      String?
+  liveUrl     String?         @map("live_url")
+  githubUrl   String?         @map("github_url")
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("projects")
+}
+
+model Service {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String   @unique
+  title       String
+  tagline     String
+  description String
+  pillar      String   // 'SaaS' | 'Automation' | 'R&D'
+  features    Json     @default("[]")
+  icon        String
+  orderIndex  Int      @default(0) @map("order_index")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("services")
+}
+
+model ContactSubmission {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String
+  email           String
+  company         String?
+  serviceInterest String?  @map("service_interest")
+  budgetRange     String?  @map("budget_range")
+  message         String
+  status          String   @default("new")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("contact_submissions")
+}
