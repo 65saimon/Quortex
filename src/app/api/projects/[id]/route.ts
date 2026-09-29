@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ProjectSchema } from "@/lib/validations";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -22,24 +22,22 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const isConfigured =
-      supabaseUrl && !supabaseUrl.includes("placeholder-project");
-
-    if (isConfigured) {
+    if (isSupabaseConfigured()) {
       const supabase = createAdminClient();
-      const { data, error } = await supabase
-        .from("projects")
-        .update(validation.data)
-        .eq("id", id)
-        .select()
-        .single();
+      if (supabase) {
+        const { data, error } = await supabase
+          .from("projects")
+          .update(validation.data)
+          .eq("id", id)
+          .select()
+          .single();
 
-      if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        if (error) {
+          return NextResponse.json({ error: error.message }, { status: 500 });
+        }
+
+        return NextResponse.json(data);
       }
-
-      return NextResponse.json(data);
     }
 
     return NextResponse.json({ message: "Updated in preview mode", id, ...validation.data });
@@ -52,15 +50,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const isConfigured =
-      supabaseUrl && !supabaseUrl.includes("placeholder-project");
 
-    if (isConfigured) {
+    if (isSupabaseConfigured()) {
       const supabase = createAdminClient();
-      const { error } = await supabase.from("projects").delete().eq("id", id);
-      if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+      if (supabase) {
+        const { error } = await supabase.from("projects").delete().eq("id", id);
+        if (error) {
+          return NextResponse.json({ error: error.message }, { status: 500 });
+        }
       }
     }
 

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Edit } from "lucide-react";
 import { INITIAL_PROJECTS, ProjectItem } from "@/lib/initial-data";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 
 interface EditProjectPageProps {
   params: Promise<{ id: string }>;
@@ -21,20 +21,18 @@ export default async function EditProjectPage({ params }: EditProjectPageProps) 
     (p) => p.id === id || p.slug === id
   );
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const isConfigured =
-    supabaseUrl && !supabaseUrl.includes("placeholder-project");
-
-  if (isConfigured) {
+  if (isSupabaseConfigured()) {
     try {
       const supabase = createAdminClient();
-      const { data } = await supabase
-        .from("projects")
-        .select("*")
-        .or(`id.eq.${id},slug.eq.${id}`)
-        .single();
-      if (data) {
-        project = data as ProjectItem;
+      if (supabase) {
+        const { data } = await supabase
+          .from("projects")
+          .select("*")
+          .or(`id.eq.${id},slug.eq.${id}`)
+          .single();
+        if (data) {
+          project = data as ProjectItem;
+        }
       }
     } catch (err) {
       console.warn("Could not query supabase directly for edit project:", err);

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ContactSubmissionSchema } from "@/lib/validations";
 import { rateLimit } from "@/lib/rate-limit";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 
 export async function POST(request: NextRequest) {
   try {
@@ -50,40 +50,38 @@ export async function POST(request: NextRequest) {
       validation.data;
 
     // 3. Supabase persistence
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const isConfigured =
-      supabaseUrl && !supabaseUrl.includes("placeholder-project");
-
-    if (isConfigured) {
+    if (isSupabaseConfigured()) {
       const supabase = createAdminClient();
-      const { data, error } = await supabase
-        .from("contact_submissions")
-        .insert([
-          {
-            name,
-            email,
-            company,
-            service_interest,
-            budget_range,
-            message,
-            status: "new",
-          },
-        ])
-        .select()
-        .single();
+      if (supabase) {
+        const { data, error } = await supabase
+          .from("contact_submissions")
+          .insert([
+            {
+              name,
+              email,
+              company,
+              service_interest,
+              budget_range,
+              message,
+              status: "new",
+            },
+          ])
+          .select()
+          .single();
 
-      if (error) {
-        console.error("Supabase contact insertion error:", error);
+        if (error) {
+          console.error("Supabase contact insertion error:", error);
+          return NextResponse.json(
+            { error: "Failed to persist transmission." },
+            { status: 500 }
+          );
+        }
+
         return NextResponse.json(
-          { error: "Failed to persist transmission." },
-          { status: 500 }
+          { success: true, message: "Transmission received and logged.", data },
+          { status: 201 }
         );
       }
-
-      return NextResponse.json(
-        { success: true, message: "Transmission received and logged.", data },
-        { status: 201 }
-      );
     }
 
     // Fallback response for unconfigured local demo environment

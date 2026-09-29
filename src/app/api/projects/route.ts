@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ProjectSchema } from "@/lib/validations";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 import { INITIAL_PROJECTS, ProjectItem } from "@/lib/initial-data";
 
 // In-memory fallback projects store for local previewing when Supabase keys are not yet configured
@@ -8,24 +8,22 @@ let memoryProjects: ProjectItem[] = [...INITIAL_PROJECTS];
 
 export async function GET(request: NextRequest) {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const isConfigured =
-      supabaseUrl && !supabaseUrl.includes("placeholder-project");
-
-    if (isConfigured) {
+    if (isSupabaseConfigured()) {
       const supabase = createAdminClient();
-      const { data, error } = await supabase
-        .from("projects")
-        .select("*")
-        .order("created_at", { ascending: false });
+      if (supabase) {
+        const { data, error } = await supabase
+          .from("projects")
+          .select("*")
+          .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("Supabase fetch error, returning memory projects:", error.message);
-        return NextResponse.json(memoryProjects);
-      }
+        if (error) {
+          console.error("Supabase fetch error, returning memory projects:", error.message);
+          return NextResponse.json(memoryProjects);
+        }
 
-      if (data && data.length > 0) {
-        return NextResponse.json(data);
+        if (data && data.length > 0) {
+          return NextResponse.json(data);
+        }
       }
     }
 
@@ -64,44 +62,42 @@ export async function POST(request: NextRequest) {
       created_at: new Date().toISOString(),
     };
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const isConfigured =
-      supabaseUrl && !supabaseUrl.includes("placeholder-project");
-
-    if (isConfigured) {
+    if (isSupabaseConfigured()) {
       const supabase = createAdminClient();
-      const { data, error } = await supabase
-        .from("projects")
-        .insert([
-          {
-            slug: validatedData.slug,
-            title: validatedData.title,
-            tagline: validatedData.tagline,
-            description: validatedData.description,
-            category: validatedData.category,
-            tech_stack: validatedData.tech_stack,
-            cover_image: validatedData.cover_image,
-            video_url: validatedData.video_url,
-            featured: validatedData.featured,
-            status: validatedData.status,
-            metrics: validatedData.metrics,
-            client: validatedData.client,
-            live_url: validatedData.live_url,
-            github_url: validatedData.github_url,
-          },
-        ])
-        .select()
-        .single();
+      if (supabase) {
+        const { data, error } = await supabase
+          .from("projects")
+          .insert([
+            {
+              slug: validatedData.slug,
+              title: validatedData.title,
+              tagline: validatedData.tagline,
+              description: validatedData.description,
+              category: validatedData.category,
+              tech_stack: validatedData.tech_stack,
+              cover_image: validatedData.cover_image,
+              video_url: validatedData.video_url,
+              featured: validatedData.featured,
+              status: validatedData.status,
+              metrics: validatedData.metrics,
+              client: validatedData.client,
+              live_url: validatedData.live_url,
+              github_url: validatedData.github_url,
+            },
+          ])
+          .select()
+          .single();
 
-      if (error) {
-        console.error("Supabase insert error:", error);
-        return NextResponse.json(
-          { error: error.message || "Failed to persist project in database." },
-          { status: 500 }
-        );
+        if (error) {
+          console.error("Supabase insert error:", error);
+          return NextResponse.json(
+            { error: error.message || "Failed to persist project in database." },
+            { status: 500 }
+          );
+        }
+
+        return NextResponse.json(data, { status: 201 });
       }
-
-      return NextResponse.json(data, { status: 201 });
     }
 
     // In-memory fallback
